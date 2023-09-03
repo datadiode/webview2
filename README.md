@@ -8,6 +8,12 @@ The [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/micr
 
 ![html5test](https://github.com/datadiode/srellcom/assets/10423465/89f04c05-9aee-41d7-b9e8-c87aa1cddb1e)
 
+```VBS
+Sub VBFunction_1()
+    HmiRuntime.Screens("Screen_1").ScreenItems("WebView2_1").Navigate "https://html5test.com"
+End Sub
+```
+
 ## Building from source
 
 ### Visual Studio
