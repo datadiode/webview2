@@ -6,6 +6,8 @@ This ActiveX control embeds [Microsoft Edge WebView2](https://docs.microsoft.com
 
 The [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) needs to be installed to use this control.
 
+![html5test](https://github.com/datadiode/srellcom/assets/10423465/89f04c05-9aee-41d7-b9e8-c87aa1cddb1e)
+
 ## Building from source
 
 ### Visual Studio
