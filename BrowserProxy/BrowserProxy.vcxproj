@@ -57,19 +57,19 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <IgnoreImportLibrary>true</IgnoreImportLibrary>
     <LinkIncremental>true</LinkIncremental>
-    <TargetName>BrowserProxy</TargetName>
+    <TargetName>OpennessWebView2</TargetName>
     <OutDir>$(SolutionDir)BrowserProxy\$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <IgnoreImportLibrary>true</IgnoreImportLibrary>
     <LinkIncremental>false</LinkIncremental>
-    <TargetName>BrowserProxy</TargetName>
+    <TargetName>OpennessWebView2</TargetName>
     <OutDir>$(SolutionDir)BrowserProxy\$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Develop|Win32'">
     <IgnoreImportLibrary>true</IgnoreImportLibrary>
     <LinkIncremental>false</LinkIncremental>
-    <TargetName>BrowserProxy</TargetName>
+    <TargetName>OpennessWebView2</TargetName>
     <OutDir>$(SolutionDir)BrowserProxy\$(Configuration)\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">

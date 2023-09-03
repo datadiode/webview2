@@ -1,17 +1,26 @@
 HKCR
 {
+    Openness.WebView2 = s 'OpennessWebView2 Control'
+    {
+        CLSID = s '{C5AEB42F-7900-41E7-B86B-F0A9DF8A4780}'
+    }
     NoRemove CLSID
     {
-        ForceRemove {4D5AA1D8-B2D9-49D0-860E-8DAF2EC2CF0C} = s 'There Edge Browser Proxy'
+        ForceRemove {C5AEB42F-7900-41E7-B86B-F0A9DF8A4780} = s 'OpennessWebView2 Control'
         {
-            ForceRemove Programmable
+            ForceRemove 'Programmable'
+            ForceRemove 'Control'
+            ForceRemove 'Insertable'
+            'MiscStatus' = s '0'
+            {
+                '1' = s '131473'
+            }
             InprocServer32 = s '%MODULE%'
             {
-                val ThreadingModel = s 'Apartment'
+                val ThreadingModel = s 'Both'
             }
-            ProgID = s 'ThereEdge.BrowserProxy.1'
-            VersionIndependentProgID = s 'ThereEdge.BrowserProxy'
-            TypeLib = s '{E792F884-FF4C-4563-92FE-ADAEA759F2EA}'
+            ProgID = s 'Openness.WebView2'
+            TypeLib = s '{78B1F56A-FBF7-476F-86A7-E6C5C2231A6F}'
             Version = s '1.0'
         }
     }

@@ -5,7 +5,7 @@ import "docobj.idl";
 #include "exdispid.h"
 
 [
-    uuid(E792F884-FF4C-4563-92FE-ADAEA759F2EA),
+    uuid(78B1F56A-FBF7-476F-86A7-E6C5C2231A6F),
     version(1.0),
 ]
 library BrowserProxyLib
@@ -20,7 +20,7 @@ library BrowserProxyLib
     [
         odl,
         uuid(2170EFE4-F488-4F5C-A844-469080351EC4),
-        helpstring("Browser Proxy"),
+        helpstring("OpennessWebView2 Control"),
         dual,
         oleautomation,
         hidden
@@ -330,8 +330,8 @@ library BrowserProxyLib
     }
 
     [
-        uuid(4D5AA1D8-B2D9-49D0-860E-8DAF2EC2CF0C),
-        helpstring("There Edge Browser Proxy")
+        uuid(C5AEB42F-7900-41E7-B86B-F0A9DF8A4780),
+        helpstring("OpennessWebView2 Control")
     ]
     coclass ThereEdgeWebBrowser
     {

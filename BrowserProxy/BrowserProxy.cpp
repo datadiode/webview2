@@ -24,7 +24,11 @@
 #include "BrowserProxy_i.h"
 #include "BrowserProxy.h"
 
-BrowserProxyModule g_AtlModule;
+BEGIN_OBJECT_MAP(ObjectMap)
+    OBJECT_ENTRY(CLSID_ThereEdgeWebBrowser, BrowserProxyModule)
+END_OBJECT_MAP()
+
+CComModule g_AtlModule;
 HINSTANCE g_Instance;
 
 void Log(const WCHAR *format, ...)
@@ -63,11 +67,18 @@ void ReportError(HWND wnd, const WCHAR *format, ...)
 
 extern "C" BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved)
 {
-    g_Instance = hInstance;
-    return g_AtlModule.DllMain(dwReason, lpReserved);
+    if (dwReason == DLL_PROCESS_ATTACH)
+    {
+        g_Instance = hInstance;
+        g_AtlModule.Init(ObjectMap, (HINSTANCE)hInstance, &LIBID_BrowserProxyLib);
+    }
+    else if (dwReason == DLL_PROCESS_DETACH)
+    {
+        g_AtlModule.Term();
+    }
+    return TRUE;
 }
 
-__control_entrypoint(DllExport)
 STDAPI DllCanUnloadNow()
 {
     return g_AtlModule.DllCanUnloadNow();
@@ -75,13 +86,6 @@ STDAPI DllCanUnloadNow()
 
 STDAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID *ppv)
 {
-    if (IsEqualIID(riid, IID_IClassFactory))
-    {
-        g_AtlModule.AddRef();
-        *ppv = static_cast<IClassFactory*>(&g_AtlModule);
-        return S_OK;
-    }
-
     return g_AtlModule.DllGetClassObject(rclsid, riid, ppv);
 }
 
@@ -120,16 +124,11 @@ STDAPI DllInstall(BOOL bInstall, _In_opt_ LPCWSTR pszCmdLine)
 }
 
 BrowserProxyModule::BrowserProxyModule():
-    m_refCount(1),
-    m_size(),
-    m_wnd(nullptr),
     m_url(),
     m_proxyVersion(),
     m_browserVersion(),
     m_userDataFolder(),
     m_browserEvents(),
-    m_unknownSite(),
-    m_clientSite(),
     m_environment(),
     m_controller(),
     m_view(),
@@ -151,6 +150,7 @@ BrowserProxyModule::BrowserProxyModule():
     m_ready(false),
     m_visible(true)
 {
+    m_bWindowOnly = TRUE;
 }
 
 BrowserProxyModule::~BrowserProxyModule()
@@ -183,364 +183,163 @@ BrowserProxyModule::~BrowserProxyModule()
         m_settingsRequestHandler.Release();
 }
 
-HRESULT STDMETHODCALLTYPE BrowserProxyModule::QueryInterface(REFIID riid, void **object)
-{
-    if (IsEqualIID(riid, IID_IUnknown))
-    {
-        AddRef();
-        *object = static_cast<IClassFactory*>(this);
-        return S_OK;
-    }
-
-    if (IsEqualIID(riid, IID_IConnectionPointContainer))
-    {
-        AddRef();
-        *object = static_cast<IConnectionPointContainer*>(this);
-        return S_OK;
-    }
-
-    if (IsEqualIID(riid, IID_IOleObject))
-    {
-        AddRef();
-        *object = static_cast<IOleObject*>(this);
-        return S_OK;
-    }
-
-    if (IsEqualIID(riid, IID_IObjectWithSite))
-    {
-        AddRef();
-        *object = static_cast<IObjectWithSite*>(this);
-        return S_OK;
-    }
-
-    if (IsEqualIID(riid, IID_IOleInPlaceActiveObject))
-    {
-        AddRef();
-        *object = static_cast<IOleInPlaceActiveObject*>(this);
-        return S_OK;
-    }
-
-    if (IsEqualIID(riid, IID_IViewObjectEx))
-    {
-        AddRef();
-        *object = static_cast<IViewObjectEx*>(this);
-        return S_OK;
-    }
-
-    if (IsEqualIID(riid, IID_ISupportErrorInfo))
-    {
-        AddRef();
-        *object = static_cast<ISupportErrorInfo*>(this);
-        return S_OK;
-    }
-
-    if (IsEqualIID(riid, IID_IDispatch))
-    {
-        AddRef();
-        *object = static_cast<IDispatch*>(this);
-        return S_OK;
-    }
-
-    if (IsEqualIID(riid, IID_IThereEdgeWebBrowser2))
-    {
-        AddRef();
-        *object = static_cast<IThereEdgeWebBrowser2*>(this);
-        return S_OK;
-    }
-
-    *object = nullptr;
-    return E_NOINTERFACE;
-}
-
-ULONG STDMETHODCALLTYPE BrowserProxyModule::AddRef()
-{
-    return ++m_refCount;
-}
-
-ULONG STDMETHODCALLTYPE BrowserProxyModule::Release()
-{
-    ULONG refCount = m_refCount--;
-
-    if (refCount == 0)
-        delete this;
-
-    return refCount;
-}
-
-HRESULT STDMETHODCALLTYPE BrowserProxyModule::CreateInstance(IUnknown *pUnkOuter, REFIID riid, void **ppv)
-{
-    if (IsEqualIID(riid, IID_IUnknown))
-    {
-        auto module = new BrowserProxyModule();
-        if (module == nullptr)
-            return E_FAIL;
-
-        *ppv = static_cast<IClassFactoryEx*>(module);
-        return S_OK;
-    }
-
-    return E_NOINTERFACE;
-}
-
-HRESULT STDMETHODCALLTYPE BrowserProxyModule::LockServer(BOOL fLock)
-{
-    if (fLock)
-        m_nLockCnt++;
-    else
-        m_nLockCnt--;
-
-    return S_OK;
-}
-
-HRESULT STDMETHODCALLTYPE BrowserProxyModule::FindConnectionPoint(REFIID riid, IConnectionPoint **ppCP)
-{
-    if (IsEqualIID(riid, DIID_IThereEdgeWebBrowserEvents2))
-    {
-        AddRef();
-        *ppCP = static_cast<IConnectionPoint*>(this);
-        return S_OK;
-    }
-
-    return E_NOINTERFACE;
-}
-
-HRESULT STDMETHODCALLTYPE BrowserProxyModule::Advise(IUnknown *pUnkSink, DWORD *pdwCookie)
-{
-    if (pUnkSink == nullptr || pdwCookie == nullptr)
-        return E_INVALIDARG;
-
-    if (SUCCEEDED(pUnkSink->QueryInterface(&m_browserEvents)))
-    {
-        *pdwCookie = (DWORD)&m_browserEvents;
-        return S_OK;
-    }
-
-    return E_FAIL;
-}
-
-HRESULT STDMETHODCALLTYPE BrowserProxyModule::Unadvise(DWORD dwCookie)
-{
-    if (dwCookie == (DWORD)&m_browserEvents && m_browserEvents != nullptr)
-    {
-        m_browserEvents.Release();
-        return S_OK;
-    }
-
-    return E_FAIL;
-}
-
-HRESULT STDMETHODCALLTYPE BrowserProxyModule::SetClientSite(IOleClientSite *pClientSite)
-{
-    m_clientSite = pClientSite;
-    return S_OK;
-}
-
-HRESULT STDMETHODCALLTYPE BrowserProxyModule::GetClientSite(IOleClientSite **ppClientSite)
-{
-    if (ppClientSite == nullptr)
-        return E_INVALIDARG;
-
-    if (FAILED(m_clientSite.CopyTo(ppClientSite)))
-        return E_FAIL;
-
-    return S_OK;
-}
-
 HRESULT STDMETHODCALLTYPE BrowserProxyModule::SetHostNames(LPCOLESTR szContainerApp, LPCOLESTR szContainerObj)
 {
     return S_OK;
 }
 
-HRESULT STDMETHODCALLTYPE BrowserProxyModule::Close(DWORD dwSaveOption)
+bool BrowserProxyModule::InIDE()
+{
+    BOOL bUserMode = TRUE;
+    return SUCCEEDED(GetAmbientUserMode(bUserMode)) && !bUserMode;
+}
+
+HRESULT BrowserProxyModule::OnDraw(ATL_DRAWINFO& di)
+{
+    if (InIDE())
+    {
+        RECT& rc = *(RECT*)di.prcBounds;
+        Rectangle(di.hdcDraw, rc.left, rc.top, rc.right, rc.bottom);
+
+        SetTextAlign(di.hdcDraw, TA_LEFT | TA_BASELINE);
+
+        int x = 5;
+        int y = 15;
+
+        CComBSTR text;
+        text += L"OpennessWebView2 v";
+        text += m_proxyVersion;
+        text += L" Control - Design Mode";
+
+        MoveToEx(di.hdcDraw, x, y, nullptr);
+        TextOut(di.hdcDraw, x, y, text, text.Length());
+    }
+
+    return S_OK;
+}
+
+LRESULT BrowserProxyModule::OnCreate(UINT, WPARAM, LPARAM, BOOL&)
+{
+    if (HRSRC source = FindResource(g_Instance, MAKEINTRESOURCE(VS_VERSION_INFO), RT_VERSION))
+    {
+        if (HGLOBAL resource = LoadResource(g_Instance, source))
+        {
+            if (void *data = LockResource(resource))
+            {
+                VS_FIXEDFILEINFO *version = nullptr;
+                UINT size = 0;
+                if (VerQueryValue(data, L"\\", (void**)&version, &size) && version != nullptr && size >= sizeof(VS_FIXEDFILEINFO))
+                {
+                    WCHAR value[100];
+                    _snwprintf_s(value, _countof(value), L"%u.%u.%u.%u",
+                                    version->dwFileVersionMS >> 16 & 0xFFFF,
+                                    version->dwFileVersionMS & 0xFFFF,
+                                    version->dwFileVersionLS >> 16 & 0xFFFF,
+                                    version->dwFileVersionLS & 0xFFFF);
+                    m_proxyVersion = value;
+                }
+            }
+        }
+    }
+
+    if (!InIDE())
+    {
+        WCHAR userDataFolder[MAX_PATH] = {0};
+        if (SUCCEEDED(SHGetFolderPath(nullptr, CSIDL_LOCAL_APPDATA, nullptr, SHGFP_TYPE_CURRENT, userDataFolder)) && userDataFolder[0] != 0)
+        {
+            WCHAR executingFile[MAX_PATH] = { 0 };
+            GetModuleFileName(g_Instance, executingFile, _countof(executingFile));
+            if (PathAppend(userDataFolder, PathFindFileName(executingFile)))
+            {
+                CreateDirectory(userDataFolder, nullptr);
+                GetModuleFileName(nullptr, executingFile, _countof(executingFile));
+                if (PathAppend(userDataFolder, PathFindFileName(executingFile)))
+                {
+                    CreateDirectory(userDataFolder, nullptr);
+                    m_userDataFolder = userDataFolder;
+                }
+            }
+        }
+        HRESULT rc = CreateCoreWebView2EnvironmentWithOptions(nullptr, m_userDataFolder, nullptr, this);
+        if (FAILED(rc))
+        {
+            switch (rc)
+            {
+                case HRESULT_FROM_WIN32(ERROR_NOT_SUPPORTED):
+                {
+                    ReportError(m_hWnd, L"The Edge application path was used in the browser executable folder.");
+                    break;
+                }
+                case HRESULT_FROM_WIN32(ERROR_INVALID_STATE):
+                {
+                    ReportError(m_hWnd, L"The specified options do not match the options of the WebViews that are currently running in the shared browser process.");
+                    break;
+                }
+                case HRESULT_FROM_WIN32(ERROR_DISK_FULL):
+                {
+                    ReportError(m_hWnd, L"Too many previous WebView2 Runtime versions exist.");
+                    break;
+                }
+                case HRESULT_FROM_WIN32(ERROR_PRODUCT_UNINSTALLED):
+                {
+                    ReportError(m_hWnd, L"The Webview depends upon an installed WebView2 Runtime version and it is uninstalled.");
+                    break;
+                }
+                case HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND):
+                {
+                    ReportError(m_hWnd, L"Could not find an Edge installation.");
+                    break;
+                }
+                case HRESULT_FROM_WIN32(ERROR_FILE_EXISTS):
+                {
+                    ReportError(m_hWnd, L"The user data folder cannot be created because a file with the same name already exists.");
+                    break;
+                }
+                case E_ACCESSDENIED:
+                {
+                    ReportError(m_hWnd, L"Unable to create the user data folder.");
+                    break;
+                }
+                case E_FAIL:
+                {
+                    ReportError(m_hWnd, L"The Edge runtime is unable to start.");
+                    break;
+                }
+                default:
+                {
+                    ReportError(m_hWnd, L"Unable to create a WebView2 environment: 0x%08lx", rc);
+                    break;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+LRESULT BrowserProxyModule::OnDestroy(UINT, WPARAM, LPARAM, BOOL& bHandled)
 {
     if (m_controller != nullptr)
         m_controller->Close();
 
-    Release();
-    return S_OK;
+    bHandled = FALSE;
+    return 0;
 }
 
-HRESULT STDMETHODCALLTYPE BrowserProxyModule::DoVerb(LONG iVerb, LPMSG lpmsg, IOleClientSite *pActiveSite, LONG lindex, HWND hwndParent, LPCRECT lprcPosRect)
+LRESULT BrowserProxyModule::OnSize(UINT, WPARAM, LPARAM, BOOL&)
 {
-    switch (iVerb)
+    if (m_controller)
     {
-        case OLEIVERB_INPLACEACTIVATE:
-        {
-            if (m_environment != nullptr)
-                return S_OK;
-
-            if (hwndParent == nullptr)
-                return E_INVALIDARG;
-
-            if (pActiveSite == nullptr)
-                return E_INVALIDARG;
-
-            if (lprcPosRect == nullptr)
-                return E_INVALIDARG;
-
-            m_wnd = hwndParent;
-
-            SetRect(*lprcPosRect);
-
-            {
-                HRSRC source = FindResource(g_Instance, MAKEINTRESOURCE(VS_VERSION_INFO), RT_VERSION);
-                if (source != nullptr)
-                {
-                    HGLOBAL resource = LoadResource(g_Instance, source);
-                    if (resource != nullptr)
-                    {
-                        void *data = LockResource(resource);
-                        if (data != nullptr)
-                        {
-                            VS_FIXEDFILEINFO *version = nullptr;
-                            UINT size = 0;
-                            if (VerQueryValue(data, L"\\", (void**)&version, &size) && version != nullptr && size >= sizeof(VS_FIXEDFILEINFO))
-                            {
-                                WCHAR value[100];
-                                _snwprintf_s(value, _countof(value), L"%u.%u.%u",
-                                             version->dwFileVersionMS >> 16 & 0xFFFF,
-                                             version->dwFileVersionMS & 0xFFFF,
-                                             version->dwFileVersionLS >> 16 & 0xFFFF);
-                                m_proxyVersion = value;
-                            }
-                        }
-                    }
-                }
-            }
-
-            {
-                WCHAR userDataFolder[MAX_PATH] = {0};
-                if (SUCCEEDED(SHGetFolderPath(nullptr, CSIDL_LOCAL_APPDATA, nullptr, SHGFP_TYPE_CURRENT, userDataFolder)) && userDataFolder[0] != 0)
-                {
-                    if (PathAppend(userDataFolder, L"There"))
-                    {
-                        CreateDirectory(userDataFolder, nullptr);
-                        if (PathAppend(userDataFolder, L"Edge"))
-                        {
-                            CreateDirectory(userDataFolder, nullptr);
-                            m_userDataFolder = userDataFolder;
-                        }
-                    }
-                }
-            }
-
-            HRESULT rc = CreateCoreWebView2EnvironmentWithOptions(nullptr, m_userDataFolder, nullptr, this);
-            if (FAILED(rc))
-            {
-                switch (rc)
-                {
-                    case HRESULT_FROM_WIN32(ERROR_NOT_SUPPORTED):
-                    {
-                        ReportError(hwndParent, L"The Edge application path was used in the browser executable folder.");
-                        break;
-                    }
-                    case HRESULT_FROM_WIN32(ERROR_INVALID_STATE):
-                    {
-                        ReportError(hwndParent, L"The specified options do not match the options of the WebViews that are currently running in the shared browser process.");
-                        break;
-                    }
-                    case HRESULT_FROM_WIN32(ERROR_DISK_FULL):
-                    {
-                        ReportError(hwndParent, L"Too many previous WebView2 Runtime versions exist.");
-                        break;
-                    }
-                    case HRESULT_FROM_WIN32(ERROR_PRODUCT_UNINSTALLED):
-                    {
-                        ReportError(hwndParent, L"The Webview depends upon an installed WebView2 Runtime version and it is uninstalled.");
-                        break;
-                    }
-                    case HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND):
-                    {
-                        ReportError(hwndParent, L"Could not find an Edge installation.");
-                        break;
-                    }
-                    case HRESULT_FROM_WIN32(ERROR_FILE_EXISTS):
-                    {
-                        ReportError(hwndParent, L"The user data folder cannot be created because a file with the same name already exists.");
-                        break;
-                    }
-                    case E_ACCESSDENIED:
-                    {
-                        ReportError(hwndParent, L"Unable to create the user data folder.");
-                        break;
-                    }
-                    case E_FAIL:
-                    {
-                        ReportError(hwndParent, L"The Edge runtime is unable to start.");
-                        break;
-                    }
-                    default:
-                    {
-                        ReportError(hwndParent, L"Unable to create a WebView2 environment: 0x%08lx", rc);
-                        break;
-                    }
-                }
-
-                return E_FAIL;
-            }
-
-            return S_OK;
-        }
-
-        default:
-            return E_NOTIMPL;
+        RECT bounds;
+        GetClientRect(&bounds);
+        m_controller->put_Bounds(bounds);
     }
+    return 0;
 }
 
-HRESULT STDMETHODCALLTYPE BrowserProxyModule::SetExtent(DWORD dwDrawAspect, SIZEL *psizel)
+LRESULT BrowserProxyModule::OnEraseBkgnd(UINT, WPARAM, LPARAM, BOOL&)
 {
-    if (dwDrawAspect != DVASPECT_CONTENT || psizel == nullptr)
-        return E_INVALIDARG;
-
-    SetSize(*psizel);
-    return S_OK;
-}
-
-HRESULT STDMETHODCALLTYPE BrowserProxyModule::GetExtent(DWORD dwDrawAspect, SIZEL *psizel)
-{
-    if (dwDrawAspect != DVASPECT_CONTENT || psizel == nullptr)
-        return E_INVALIDARG;
-
-    *psizel = m_size;
-    return S_OK;
-}
-
-HRESULT STDMETHODCALLTYPE BrowserProxyModule::GetMiscStatus(DWORD dwAspect, DWORD *pdwStatus)
-{
-    if (dwAspect != DVASPECT_CONTENT || pdwStatus == nullptr)
-        return E_INVALIDARG;
-
-    *pdwStatus = 0;
-    return S_OK;
-}
-
-HRESULT STDMETHODCALLTYPE BrowserProxyModule::SetSite(IUnknown *pUnkSite)
-{
-    if (pUnkSite == nullptr)
-        return E_INVALIDARG;
-
-    m_unknownSite = pUnkSite;
-    return S_OK;
-}
-
-HRESULT STDMETHODCALLTYPE BrowserProxyModule::GetSite(REFIID riid, void **ppvSite)
-{
-    if (ppvSite == nullptr)
-        return E_INVALIDARG;
-
-    if (FAILED(m_unknownSite.CopyTo((IUnknown**)ppvSite)))
-        return E_FAIL;
-
-    return S_OK;
-}
-
-HRESULT STDMETHODCALLTYPE BrowserProxyModule::GetWindow(HWND *phwnd)
-{
-    if (phwnd == nullptr)
-        return E_INVALIDARG;
-
-    *phwnd = m_wnd;
-    return S_OK;
+    return 1;
 }
 
 HRESULT STDMETHODCALLTYPE BrowserProxyModule::GoBack()
@@ -703,31 +502,8 @@ HRESULT STDMETHODCALLTYPE BrowserProxyModule::Invoke(HRESULT errorCode, ICoreWeb
         CoTaskMemFree(version);
     }
 
-    for (HWND wnd = m_wnd; wnd != nullptr; wnd = GetParent(wnd))
-    {
-        if (GetWindowLong(wnd, GWL_STYLE) & WS_CHILDWINDOW)
-            continue;
-
-        WCHAR className[100];
-        if (GetClassName(wnd, className, _countof(className)) == 0)
-            break;
-
-        if (wcscmp(className, L"ThereTopLevelMdiWindowClass") != 0)
-            break;
-
-        WCHAR currentTitle[250];
-        if (GetWindowText(wnd, currentTitle, _countof(currentTitle)) > 0 && wcsstr(currentTitle, L"Edge") == nullptr)
-        {
-            WCHAR extendedTitle[250];
-            _snwprintf_s(extendedTitle, _countof(extendedTitle), L"%s (Edge %s %s)", currentTitle, m_proxyVersion.m_str, m_browserVersion.m_str);
-            SetWindowText(wnd, extendedTitle);
-        }
-
-        break;
-    }
-
     m_environment = environment;
-    m_environment->CreateCoreWebView2Controller(m_wnd, this);
+    m_environment->CreateCoreWebView2Controller(m_hWnd, this);
     return S_OK;
 }
 
@@ -761,7 +537,7 @@ HRESULT STDMETHODCALLTYPE BrowserProxyModule::Invoke(HRESULT errorCode, ICoreWeb
     settings->put_IsWebMessageEnabled(false);
 
     RECT bounds;
-    GetClientRect(m_wnd, &bounds);
+    GetClientRect(&bounds);
     m_controller->put_Bounds(bounds);
 
     m_controller->put_ShouldDetectMonitorScaleChanges(false);
@@ -847,7 +623,6 @@ HRESULT STDMETHODCALLTYPE BrowserProxyModule::Invoke(HRESULT errorCode, ICoreWeb
         }
     ).Get(), &m_downloadStartingToken);
 
-    GetStartPage();
     ProcessDeferral();
 
     if (FAILED(Navigate()))
@@ -916,7 +691,7 @@ HRESULT BrowserProxyModule::OnNavigationStarting(ICoreWebView2 *sender,  ICoreWe
     if (VoiceTrainerProxy::Validate(m_url))
     {
         CComPtr<VoiceTrainerProxy> voiceTrainerProxy(new VoiceTrainerProxy());
-        if (voiceTrainerProxy != nullptr && SUCCEEDED(voiceTrainerProxy->Init(m_wnd, sender)))
+        if (voiceTrainerProxy != nullptr && SUCCEEDED(voiceTrainerProxy->Init(m_hWnd, sender)))
         {
             m_voiceTrainerProxy = voiceTrainerProxy;
             settings->put_IsWebMessageEnabled(true);
@@ -1172,7 +947,7 @@ HRESULT BrowserProxyModule::OnWebResourceRequested(ICoreWebView2 *sender, ICoreW
     }
 
     if (m_settingsRequestHandler != nullptr && SettingsRequestHandler::Validate(burl))
-        return m_settingsRequestHandler->HandleRequest(burl, args, m_wnd);
+        return m_settingsRequestHandler->HandleRequest(burl, args, m_hWnd);
 
     return S_OK;
 }
@@ -1384,52 +1159,6 @@ HRESULT BrowserProxyModule::InvokeBrowserEvent(DISPID id, DISPPARAMS &params, VA
 
     if (FAILED(m_browserEvents->Invoke(id, DIID_IThereEdgeWebBrowserEvents2, LOCALE_SYSTEM_DEFAULT, DISPATCH_METHOD, &params, result, nullptr, nullptr)))
        return E_FAIL;
-
-    return S_OK;
-}
-
-HRESULT BrowserProxyModule::SetSize(const SIZE &size)
-{
-    RECT rect;
-    rect.left = 0;
-    rect.top = 0;
-    rect.right = rect.left + size.cx;
-    rect.bottom = rect.top + size.cy;
-
-    return SetRect(rect);
-}
-
-HRESULT BrowserProxyModule::SetRect(const RECT &rect)
-{
-    UINT flags = SWP_NOMOVE;
-
-    LONG width = rect.right > rect.left ? rect.right - rect.left : 1;
-    LONG height= rect.bottom > rect.top ? rect.bottom - rect.top : 1;
-
-    if (width == m_size.cx && height == m_size.cy)
-        flags |= SWP_NOSIZE;
-
-    if (flags == (SWP_NOMOVE | SWP_NOSIZE))
-        return S_OK;
-
-    m_size.cx = width;
-    m_size.cy = height;
-
-    if (m_wnd == nullptr)
-        return S_OK;
-
-    if (m_controller != nullptr)
-    {
-        if ((flags & SWP_NOMOVE) == 0)
-            m_controller->NotifyParentWindowPositionChanged();
-
-        if ((flags & SWP_NOSIZE) == 0)
-        {
-            RECT bounds;
-            GetClientRect(m_wnd, &bounds);
-            m_controller->put_Bounds(bounds);
-        }
-    }
 
     return S_OK;
 }
@@ -1659,33 +1388,4 @@ HRESULT BrowserProxyModule::ProcessDeferral()
     m_newWindowArgs.Release();
 
     return S_OK;
-}
-
-HRESULT BrowserProxyModule::GetStartPage(const WCHAR *path)
-{
-    if (m_url.Length() > 0 || m_newWindowDeferral != nullptr)
-        return S_OK;
-
-    if (path == nullptr)
-    {
-        if (GetStartPage(L"Software\\There.com\\There\\Edge\\") == S_OK)
-            return S_OK;
-
-        if (GetStartPage(L"Software\\Microsoft\\Internet Explorer\\Main\\") == S_OK)
-            return S_OK;
-
-        return S_FALSE;
-    }
-
-    WCHAR url[INTERNET_MAX_URL_LENGTH];
-    DWORD length = _countof(url);
-    if (RegGetValue(HKEY_CURRENT_USER, path, L"Start Page", RRF_RT_REG_SZ, nullptr, &url, &length) == ERROR_SUCCESS)
-    {
-        if (length > 0 && wcscmp(url, L"about:blank") != 0)
-            m_url = url;
-
-        return S_OK;
-    }
-
-    return S_FALSE;
 }

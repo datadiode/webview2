@@ -1,96 +1,161 @@
 #pragma once
 
 using namespace ATL;
-using namespace Microsoft::WRL;
 
 void Log(const WCHAR *format, ...);
 
-class BrowserProxyModule: public ATL::CAtlDllModuleT<BrowserProxyModule>,
-                          public IClassFactoryEx,
-                          public IConnectionPointContainer,
-                          public IConnectionPoint,
-                          public IOleObject,
-                          public IObjectWithSite,
-                          public IOleInPlaceActiveObject,
-                          public IViewObjectEx,
-                          public ISupportErrorInfo,
-                          public IThereEdgeWebBrowser2,
+class CDispInvoke
+{
+public:
+    static UINT const WM_DISPINVOKE = WM_APP + 1;
+    CDispInvoke
+    (
+        IDispatch* p,
+        DISPID dispidMember,
+        REFIID riid,
+        LCID lcid,
+        WORD wFlags,
+        DISPPARAMS* pdispparams,
+        VARIANT* pvarResult,
+        EXCEPINFO* pexcepinfo,
+        UINT* puArgErr
+    )
+        : p(p)
+        , dispidMember(dispidMember)
+        , riid(riid)
+        , lcid(lcid)
+        , wFlags(wFlags)
+        , pdispparams(pdispparams)
+        , pvarResult(pvarResult)
+        , pexcepinfo(pexcepinfo)
+        , puArgErr(puArgErr)
+    {
+    }
+    LRESULT Invoke()
+    {
+        return p->Invoke(dispidMember, riid, lcid, wFlags, pdispparams, pvarResult, pexcepinfo, puArgErr);
+    }
+    HRESULT Invoke(HWND hwnd)
+    {
+        return static_cast<HRESULT>(SendMessage(hwnd, WM_DISPINVOKE, 0, reinterpret_cast<LPARAM>(this)));
+    }
+    static LRESULT OnDispInvoke(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+    {
+        return reinterpret_cast<CDispInvoke*>(lParam)->Invoke();
+    }
+private:
+    IDispatch* const p;
+    DISPID const dispidMember;
+    REFIID riid;
+    LCID const lcid;
+    WORD const wFlags;
+    DISPPARAMS* const pdispparams;
+    VARIANT* const pvarResult;
+    EXCEPINFO* const pexcepinfo;
+    UINT* const puArgErr;
+};
+
+class BrowserProxyLicense
+{
+protected:
+    static BOOL VerifyLicenseKey(BSTR bstr)
+    {
+        return wcscmp(bstr, L"fX5xiyLkhf1hCQ6gh9Zrsw") == 0;
+    }
+    static BOOL GetLicenseKey(DWORD, BSTR* pBstr)
+    {
+        *pBstr = SysAllocString(L"fX5xiyLkhf1hCQ6gh9Zrsw");
+        return TRUE;
+    }
+    static BOOL IsLicenseValid() { return TRUE; }
+};
+
+class BrowserProxyModule: public CComObjectRootEx<CComSingleThreadModel>,
+                          public CComControl<BrowserProxyModule>,
+                          public IOleControlImpl<BrowserProxyModule>,
+                          public IOleObjectImpl<BrowserProxyModule>,
+                          public IOleInPlaceActiveObjectImpl<BrowserProxyModule>,
+                          public IViewObjectExImpl<BrowserProxyModule>,
+                          public IOleInPlaceObjectWindowlessImpl<BrowserProxyModule>,
+                          public IPersistStorageImpl<BrowserProxyModule>,
+                          public IPersistStreamInitImpl<BrowserProxyModule>,
+                          public ISupportErrorInfoImpl<&IID_IThereEdgeWebBrowser>,
+ 	                      public IDispatchImpl<IThereEdgeWebBrowser2, &IID_IThereEdgeWebBrowser2, &LIBID_BrowserProxyLib>,
+                          public CComCoClass<BrowserProxyModule, &CLSID_ThereEdgeWebBrowser>,
                           public ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler,
                           public ICoreWebView2CreateCoreWebView2ControllerCompletedHandler
 {
 public:
-    DECLARE_LIBID(LIBID_BrowserProxyLib)
-    DECLARE_REGISTRY_APPID_RESOURCEID(IDR_BROWSERPROXY, "{E792F884-FF4C-4563-92FE-ADAEA759F2EA}")
+    DECLARE_CLASSFACTORY2(BrowserProxyLicense)
+    DECLARE_REGISTRY_RESOURCEID(IDR_BROWSERPROXY)
+
+    DECLARE_OLEMISC_STATUS(OLEMISC_RECOMPOSEONRESIZE |
+        OLEMISC_CANTLINKINSIDE |
+        OLEMISC_INSIDEOUT |
+        OLEMISC_ACTIVATEWHENVISIBLE |
+        OLEMISC_SETCLIENTSITEFIRST)
 
     BrowserProxyModule();
     virtual ~BrowserProxyModule();
 
-    virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **object) override;
-    virtual ULONG STDMETHODCALLTYPE AddRef() override;
-    virtual ULONG STDMETHODCALLTYPE Release() override;
+    BEGIN_COM_MAP(BrowserProxyModule)
+        COM_INTERFACE_ENTRY(IThereEdgeWebBrowser)
+        COM_INTERFACE_ENTRY2(IDispatch, IThereEdgeWebBrowser)
+        COM_INTERFACE_ENTRY(IViewObjectEx)
+        COM_INTERFACE_ENTRY(IViewObject2)
+        COM_INTERFACE_ENTRY(IViewObject)
+        COM_INTERFACE_ENTRY(IOleInPlaceObjectWindowless)
+        COM_INTERFACE_ENTRY(IOleInPlaceObject)
+        COM_INTERFACE_ENTRY2(IOleWindow, IOleInPlaceObjectWindowless)
+        COM_INTERFACE_ENTRY(IOleInPlaceActiveObject)
+        COM_INTERFACE_ENTRY(IOleControl)
+        COM_INTERFACE_ENTRY(IOleObject)
+        COM_INTERFACE_ENTRY(IPersistStorage)
+        COM_INTERFACE_ENTRY(IPersistStreamInit)
+        COM_INTERFACE_ENTRY2(IPersist, IPersistStreamInit)
+    END_COM_MAP()
+
+    BEGIN_PROP_MAP(BrowserProxyModule)
+        PROP_DATA_ENTRY("_cx", m_sizeExtent.cx, VT_UI4)
+        PROP_DATA_ENTRY("_cy", m_sizeExtent.cy, VT_UI4)
+    END_PROP_MAP()
+
+    BEGIN_MSG_MAP(BrowserProxyModule)
+        CHAIN_MSG_MAP(CComControl<BrowserProxyModule>)
+        MESSAGE_HANDLER(CDispInvoke::WM_DISPINVOKE, CDispInvoke::OnDispInvoke)
+        MESSAGE_HANDLER(WM_CREATE, OnCreate)
+        MESSAGE_HANDLER(WM_DESTROY, OnDestroy)
+        MESSAGE_HANDLER(WM_SIZE, OnSize)
+        MESSAGE_HANDLER(WM_ERASEBKGND, OnEraseBkgnd)
+    END_MSG_MAP()
+
+    HRESULT IPersistStreamInit_Load(LPSTREAM, ATL_PROPMAP_ENTRY const*) { return S_OK; }
+
+    bool InIDE();
+    HRESULT OnDraw(ATL_DRAWINFO& di);
 
 protected:
-    virtual HRESULT STDMETHODCALLTYPE CreateInstance(IUnknown *pUnkOuter, REFIID riid, void **ppv) override;
-    virtual HRESULT STDMETHODCALLTYPE CreateInstanceWithContext(IUnknown *punkContext, IUnknown *punkOuter, REFIID riid, void **ppv) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE LockServer(BOOL fLock) override;
-    virtual HRESULT STDMETHODCALLTYPE EnumConnectionPoints(IEnumConnectionPoints **ppEnum) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE FindConnectionPoint(REFIID riid, IConnectionPoint **ppCP) override;
-    virtual HRESULT STDMETHODCALLTYPE GetConnectionInterface(IID *pIID) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE GetConnectionPointContainer(IConnectionPointContainer **ppCPC) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE Advise(IUnknown *pUnkSink, DWORD *pdwCookie) override;
-    virtual HRESULT STDMETHODCALLTYPE Unadvise(DWORD dwCookie) override;
-    virtual HRESULT STDMETHODCALLTYPE EnumConnections(IEnumConnections **ppEnum) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE SetClientSite(IOleClientSite *pClientSite) override;
-    virtual HRESULT STDMETHODCALLTYPE GetClientSite(IOleClientSite **ppClientSite) override;
+    LRESULT OnCreate(UINT, WPARAM, LPARAM, BOOL&);
+    LRESULT OnDestroy(UINT, WPARAM, LPARAM, BOOL&);
+    LRESULT OnSize(UINT, WPARAM, LPARAM, BOOL&);
+    LRESULT OnEraseBkgnd(UINT, WPARAM, LPARAM, BOOL&);
+
+    STDMETHOD(Invoke)(
+        DISPID dispidMember,
+        REFIID riid,
+        LCID lcid,
+        WORD wFlags,
+        DISPPARAMS* pdispparams,
+        VARIANT* pvarResult,
+        EXCEPINFO* pexcepinfo,
+        UINT* puArgErr)
+    {
+        return GetCurrentThreadId() != GetWindowThreadProcessId(m_hWnd, NULL) ?
+            CDispInvoke(this, dispidMember, riid, lcid, wFlags, pdispparams, pvarResult, pexcepinfo, puArgErr).Invoke(m_hWnd) :
+            IDispatchImpl::Invoke(dispidMember, riid, lcid, wFlags, pdispparams, pvarResult, pexcepinfo, puArgErr);
+    }
+
     virtual HRESULT STDMETHODCALLTYPE SetHostNames(LPCOLESTR szContainerApp, LPCOLESTR szContainerObj) override;
-    virtual HRESULT STDMETHODCALLTYPE Close(DWORD dwSaveOption) override;
-    virtual HRESULT STDMETHODCALLTYPE SetMoniker(DWORD dwWhichMoniker, IMoniker *pmk) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE GetMoniker(DWORD dwAssign, DWORD dwWhichMoniker, IMoniker **ppmk) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE InitFromData(IDataObject *pDataObject, BOOL fCreation, DWORD dwReserved) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE GetClipboardData(DWORD dwReserved, IDataObject **ppDataObject) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE DoVerb(LONG iVerb, LPMSG lpmsg, IOleClientSite *pActiveSite, LONG lindex, HWND hwndParent, LPCRECT lprcPosRect) override;
-    virtual HRESULT STDMETHODCALLTYPE EnumVerbs(IEnumOLEVERB **ppEnumOleVerb) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE Update() override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE IsUpToDate() override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE GetUserClassID(CLSID *pClsid) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE GetUserType(DWORD dwFormOfType, LPOLESTR *pszUserType) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE SetExtent(DWORD dwDrawAspect, SIZEL *psizel) override;
-    virtual HRESULT STDMETHODCALLTYPE GetExtent(DWORD dwDrawAspect, SIZEL *psizel) override;
-    virtual HRESULT STDMETHODCALLTYPE Advise(IAdviseSink *pAdvSink, DWORD *pdwConnection) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE EnumAdvise(IEnumSTATDATA **ppenumAdvise) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE GetMiscStatus(DWORD dwAspect, DWORD *pdwStatus) override;
-    virtual HRESULT STDMETHODCALLTYPE SetColorScheme(LOGPALETTE *pLogpal) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE SetSite(IUnknown *pUnkSite) override;
-    virtual HRESULT STDMETHODCALLTYPE GetSite(REFIID riid, void **ppvSite) override;
-    virtual HRESULT STDMETHODCALLTYPE GetWindow(HWND *phwnd) override;
-    virtual HRESULT STDMETHODCALLTYPE ContextSensitiveHelp(BOOL fEnterMode) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE TranslateAccelerator(LPMSG lpmsg) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE OnFrameWindowActivate(BOOL fActivate) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE OnDocWindowActivate(BOOL fActivate) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE ResizeBorder(LPCRECT prcBorder, IOleInPlaceUIWindow *pUIWindow, BOOL fFrameWindow) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE EnableModeless(BOOL fEnable) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE Draw(DWORD dwDrawAspect, LONG lindex, void *pvAspect, DVTARGETDEVICE *ptd,
-                                           HDC hdcTargetDev, HDC hdcDraw, LPCRECTL lprcBounds, LPCRECTL lprcWBounds,
-                                           BOOL (STDMETHODCALLTYPE *pfnContinue)(ULONG_PTR dwContinue), ULONG_PTR dwContinue) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE GetColorSet(DWORD dwDrawAspect, LONG lindex, void *pvAspect, DVTARGETDEVICE *ptd,
-                                                  HDC hicTargetDev, LOGPALETTE **ppColorSet) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE Freeze(DWORD dwDrawAspect, LONG lindex, void *pvAspect, DWORD *pdwFreeze) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE Unfreeze(DWORD dwFreeze) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE SetAdvise(DWORD aspects, DWORD advf, IAdviseSink *pAdvSink) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE GetAdvise(DWORD *pAspects, DWORD *pAdvf, IAdviseSink **ppAdvSink) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE GetExtent(DWORD dwDrawAspect, LONG lindex, DVTARGETDEVICE *ptd, LPSIZEL lpsizel) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE GetRect(DWORD dwAspect, LPRECTL pRect) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE GetViewStatus(DWORD *pdwStatus) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE QueryHitPoint(DWORD dwAspect, LPCRECT pRectBounds, POINT ptlLoc, LONG lCloseHint, DWORD *pHitResult) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE QueryHitRect(DWORD dwAspect, LPCRECT pRectBounds, LPCRECT pRectLoc, LONG lCloseHint, DWORD *pHitResult) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE GetNaturalExtent(DWORD dwAspect, LONG lindex, DVTARGETDEVICE *ptd,
-                                                       HDC hicTargetDev, DVEXTENTINFO *pExtentInfo, LPSIZEL pSizel) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE InterfaceSupportsErrorInfo(REFIID riid) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE GetTypeInfoCount(UINT *pctinfo) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE GetTypeInfo(UINT iTInfo, LCID lcid, ITypeInfo **ppTInfo) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE GetIDsOfNames(REFIID riid, LPOLESTR *rgszNames, UINT cNames, LCID lcid, DISPID *rgDispId) override {return E_NOTIMPL;}
-    virtual HRESULT STDMETHODCALLTYPE Invoke(DISPID dispIdMember, REFIID riid, LCID lcid, WORD wFlags, DISPPARAMS *pDispParams,
-                                             VARIANT *pVarResult, EXCEPINFO *pExcepInfo, UINT *puArgErr) override {return E_NOTIMPL;}
     virtual HRESULT STDMETHODCALLTYPE GoBack() override;
     virtual HRESULT STDMETHODCALLTYPE GoForward() override;
     virtual HRESULT STDMETHODCALLTYPE GoHome() override;
@@ -172,27 +237,19 @@ protected:
     HRESULT OnDownloadStarting(ICoreWebView2 *sender, ICoreWebView2DownloadStartingEventArgs *args);
     HRESULT Navigate();
     HRESULT InvokeBrowserEvent(DISPID id, DISPPARAMS &args, VARIANT *result = nullptr);
-    HRESULT SetSize(const SIZE &size);
-    HRESULT SetRect(const RECT &rect);
     HRESULT SetVisibility(BOOL visible);
     HRESULT ForwardCookie(ICoreWebView2CookieManager *cookieManager, const WCHAR *url,
                           const WCHAR *name, const WCHAR *domain, const WCHAR *path);
     HRESULT ApplyScript(ICoreWebView2 *view, LONG id);
     HRESULT SetDeferral(ICoreWebView2NewWindowRequestedEventArgs *args);
     HRESULT ProcessDeferral();
-    HRESULT GetStartPage(const WCHAR *path = nullptr);
 
 protected:
-    ULONG                                              m_refCount;
-    SIZE                                               m_size;
-    HWND                                               m_wnd;
     CComBSTR                                           m_url;
     CComBSTR                                           m_proxyVersion;
     CComBSTR                                           m_browserVersion;
     CComBSTR                                           m_userDataFolder;
     CComPtr<IThereEdgeWebBrowserEvents2>               m_browserEvents;
-    CComPtr<IUnknown>                                  m_unknownSite;
-    CComPtr<IOleClientSite>                            m_clientSite;
     CComPtr<ICoreWebView2Environment>                  m_environment;
     CComPtr<ICoreWebView2Controller3>                  m_controller;
     CComPtr<ICoreWebView2_4>                           m_view;
