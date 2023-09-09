@@ -13,6 +13,7 @@ Sub VBFunction_1()
     HmiRuntime.Screens("Screen_1").ScreenItems("WebView2_1").Navigate "https://html5test.com"
 End Sub
 ```
+![OpennessWebView2](https://github.com/datadiode/srellcom/assets/10423465/6877b41e-69d2-4446-ba0a-ff7be0d4e999)
 
 ## Building from source
 
