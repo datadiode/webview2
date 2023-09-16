@@ -1,0 +1,17 @@
+version: 1.0.{build}
+image: Visual Studio 2022
+
+configuration:
+- Release
+
+platform: x86
+
+before_build:
+- nuget restore BrowserProxy.sln
+
+build:
+  verbosity: minimal
+  project: BrowserProxy.sln
+
+artifacts:
+- path: BrowserProxy\$(configuration)\OpennessWebView2.dll
