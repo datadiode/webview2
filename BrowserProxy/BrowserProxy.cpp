@@ -244,23 +244,44 @@ LRESULT BrowserProxyModule::OnCreate(UINT, WPARAM, LPARAM, BOOL&)
 
     if (!InIDE())
     {
-        WCHAR userDataFolder[MAX_PATH] = {0};
+        WCHAR executingFile[MAX_PATH];
+        WCHAR executingFileFull[MAX_PATH];
+        LPWSTR executingFileName = nullptr;
+
+        GetModuleFileName(g_Instance, executingFile, _countof(executingFile));
+        GetFullPathName(executingFile, _countof(executingFileFull), executingFileFull, &executingFileName);
+
+        WCHAR executingHost[MAX_PATH];
+        WCHAR executingHostFull[MAX_PATH];
+        LPWSTR executingHostName = nullptr;
+
+        GetModuleFileName(nullptr, executingHost, _countof(executingHost));
+        GetFullPathName(executingHost, _countof(executingHostFull), executingHostFull, &executingHostName);
+
+        WCHAR userDataFolder[MAX_PATH] = { 0 };
+        WCHAR browserExecutableFolder[MAX_PATH] = { 0 };
+
         if (SUCCEEDED(SHGetFolderPath(nullptr, CSIDL_LOCAL_APPDATA, nullptr, SHGFP_TYPE_CURRENT, userDataFolder)) && userDataFolder[0] != 0)
         {
-            WCHAR executingFile[MAX_PATH] = { 0 };
-            GetModuleFileName(g_Instance, executingFile, _countof(executingFile));
-            if (PathAppend(userDataFolder, PathFindFileName(executingFile)))
+            if (PathAppend(userDataFolder, executingFileName))
             {
                 CreateDirectory(userDataFolder, nullptr);
-                GetModuleFileName(nullptr, executingFile, _countof(executingFile));
-                if (PathAppend(userDataFolder, PathFindFileName(executingFile)))
+                if (PathAppend(userDataFolder, executingHostName))
                 {
                     CreateDirectory(userDataFolder, nullptr);
                     m_userDataFolder = userDataFolder;
                 }
             }
         }
-        HRESULT rc = CreateCoreWebView2EnvironmentWithOptions(nullptr, m_userDataFolder, nullptr, this);
+
+        PathRenameExtension(executingHost, L".ini");
+        if (GetPrivateProfileString(executingFileName, L"BrowserExecutableFolder", nullptr, browserExecutableFolder, _countof(browserExecutableFolder), executingHost) == 0)
+        {
+            PathRenameExtension(executingFile, L".ini");
+            GetPrivateProfileString(executingFileName, L"BrowserExecutableFolder", nullptr, browserExecutableFolder, _countof(browserExecutableFolder), executingFile);
+        }
+
+        HRESULT rc = CreateCoreWebView2EnvironmentWithOptions(browserExecutableFolder, m_userDataFolder, nullptr, this);
         if (FAILED(rc))
         {
             switch (rc)
