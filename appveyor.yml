@@ -13,5 +13,9 @@ build:
   verbosity: minimal
   project: BrowserProxy.sln
 
+after_build:
+- Installer\MakeSetup.bat
+
 artifacts:
 - path: BrowserProxy\$(configuration)\OpennessWebView2.dll
+- path: Installer\OpennessWebView2.exe
