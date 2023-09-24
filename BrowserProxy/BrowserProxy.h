@@ -80,7 +80,8 @@ class BrowserProxyModule: public CComObjectRootEx<CComSingleThreadModel>,
                           public IPersistStorageImpl<BrowserProxyModule>,
                           public IPersistStreamInitImpl<BrowserProxyModule>,
                           public ISupportErrorInfoImpl<&IID_IThereEdgeWebBrowser>,
- 	                      public IDispatchImpl<IThereEdgeWebBrowser2, &IID_IThereEdgeWebBrowser2, &LIBID_BrowserProxyLib>,
+                          public IDispatchImpl<IThereEdgeWebBrowser2, &IID_IThereEdgeWebBrowser2, &LIBID_BrowserProxyLib>,
+                          public IProvideClassInfo2Impl<&CLSID_ThereEdgeWebBrowser, &DIID_IThereEdgeWebBrowserEvents2, &LIBID_BrowserProxyLib>,
                           public CComCoClass<BrowserProxyModule, &CLSID_ThereEdgeWebBrowser>,
                           public ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler,
                           public ICoreWebView2CreateCoreWebView2ControllerCompletedHandler
@@ -113,6 +114,8 @@ public:
         COM_INTERFACE_ENTRY(IPersistStorage)
         COM_INTERFACE_ENTRY(IPersistStreamInit)
         COM_INTERFACE_ENTRY2(IPersist, IPersistStreamInit)
+        COM_INTERFACE_ENTRY(IProvideClassInfo2)
+        COM_INTERFACE_ENTRY2(IProvideClassInfo, IProvideClassInfo2)
     END_COM_MAP()
 
     BEGIN_PROP_MAP(BrowserProxyModule)
@@ -230,8 +233,10 @@ protected:
     HRESULT OnSourceChanged(ICoreWebView2 *sender, ICoreWebView2SourceChangedEventArgs *args);
     HRESULT OnHistoryChanged(ICoreWebView2 *sender);
     HRESULT OnDocumentTitleChanged(ICoreWebView2 *sender);
+#ifdef THERE
     HRESULT OnWebResourceRequested(ICoreWebView2 *sender, ICoreWebView2WebResourceRequestedEventArgs *args);
     HRESULT OnWebMessageReceived(ICoreWebView2 *sender, ICoreWebView2WebMessageReceivedEventArgs *args);
+#endif
     HRESULT OnWindowCloseRequested(ICoreWebView2 *sender);
     HRESULT OnDOMContentLoaded(ICoreWebView2 *sender, ICoreWebView2DOMContentLoadedEventArgs *args);
     HRESULT OnDownloadStarting(ICoreWebView2 *sender, ICoreWebView2DownloadStartingEventArgs *args);
@@ -255,16 +260,20 @@ protected:
     CComPtr<ICoreWebView2_4>                           m_view;
     CComPtr<ICoreWebView2Deferral>                     m_newWindowDeferral;
     CComPtr<ICoreWebView2NewWindowRequestedEventArgs>  m_newWindowArgs;
+#ifdef THERE
     CComPtr<VoiceTrainerProxy>                         m_voiceTrainerProxy;
     CComPtr<SettingsRequestHandler>                    m_settingsRequestHandler;
+#endif
     EventRegistrationToken                             m_navigationStartingToken;
     EventRegistrationToken                             m_navigationCompletedToken;
     EventRegistrationToken                             m_newWindowRequestedToken;
     EventRegistrationToken                             m_sourceChangedToken;
     EventRegistrationToken                             m_historyChangedToken;
     EventRegistrationToken                             m_documentTitleChangedToken;
+#ifdef THERE
     EventRegistrationToken                             m_webResourceRequestedToken;
     EventRegistrationToken                             m_webMessageReceivedToken;
+#endif
     EventRegistrationToken                             m_windowCloseRequestedToken;
     EventRegistrationToken                             m_domContentLoadedToken;
     EventRegistrationToken                             m_downloadStartingToken;

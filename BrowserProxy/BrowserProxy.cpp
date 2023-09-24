@@ -134,16 +134,20 @@ BrowserProxyModule::BrowserProxyModule():
     m_view(),
     m_newWindowDeferral(),
     m_newWindowArgs(),
+#ifdef THERE
     m_voiceTrainerProxy(),
     m_settingsRequestHandler(),
+#endif
     m_navigationStartingToken(),
     m_navigationCompletedToken(),
     m_newWindowRequestedToken(),
     m_sourceChangedToken(),
     m_historyChangedToken(),
     m_documentTitleChangedToken(),
+#ifdef THERE
     m_webResourceRequestedToken(),
     m_webMessageReceivedToken(),
+#endif
     m_windowCloseRequestedToken(),
     m_domContentLoadedToken(),
     m_downloadStartingToken(),
@@ -163,8 +167,10 @@ BrowserProxyModule::~BrowserProxyModule()
         m_view->remove_SourceChanged(m_sourceChangedToken);
         m_view->remove_HistoryChanged(m_historyChangedToken);
         m_view->remove_DocumentTitleChanged(m_documentTitleChangedToken);
+#ifdef THERE
         m_view->remove_WebResourceRequested(m_webResourceRequestedToken);
         m_view->remove_WebMessageReceived(m_webMessageReceivedToken);
+#endif
         m_view->remove_WindowCloseRequested(m_windowCloseRequestedToken);
         m_view->remove_DOMContentLoaded(m_domContentLoadedToken);
         m_view->remove_DownloadStarting(m_downloadStartingToken);
@@ -173,6 +179,7 @@ BrowserProxyModule::~BrowserProxyModule()
     if (m_controller != nullptr)
         m_controller->Close();
 
+#ifdef THERE
     if (m_voiceTrainerProxy != nullptr)
     {
         m_voiceTrainerProxy->Close();
@@ -181,6 +188,7 @@ BrowserProxyModule::~BrowserProxyModule()
 
     if (m_settingsRequestHandler != nullptr)
         m_settingsRequestHandler.Release();
+#endif
 }
 
 HRESULT STDMETHODCALLTYPE BrowserProxyModule::SetHostNames(LPCOLESTR szContainerApp, LPCOLESTR szContainerObj)
@@ -398,7 +406,9 @@ HRESULT STDMETHODCALLTYPE BrowserProxyModule::GoHome()
     if (m_view == nullptr)
         return E_NOT_VALID_STATE;
 
+#ifdef THERE
     m_url = L"https://webapps.prod.there.com/therecentral/there_central.xml?fromClient=1";
+#endif
 
     if (FAILED(Navigate()))
         return E_FAIL;
@@ -565,7 +575,9 @@ HRESULT STDMETHODCALLTYPE BrowserProxyModule::Invoke(HRESULT errorCode, ICoreWeb
     m_controller->put_RasterizationScale(1.0);
     m_controller->put_IsVisible(m_visible);
 
+#ifdef THERE
     m_view->AddWebResourceRequestedFilter(L"https://webapps.prod.there.com/*", COREWEBVIEW2_WEB_RESOURCE_CONTEXT_DOCUMENT);
+#endif
 
     m_view->add_NavigationStarting(Callback<ICoreWebView2NavigationStartingEventHandler>(
         [this](ICoreWebView2 *sender, ICoreWebView2NavigationStartingEventArgs *args) -> HRESULT
@@ -609,6 +621,7 @@ HRESULT STDMETHODCALLTYPE BrowserProxyModule::Invoke(HRESULT errorCode, ICoreWeb
         }
     ).Get(), &m_documentTitleChangedToken);
 
+#ifdef THERE
     m_view->add_WebResourceRequested(Callback<ICoreWebView2WebResourceRequestedEventHandler>(
         [this](ICoreWebView2 *sender, ICoreWebView2WebResourceRequestedEventArgs *args) -> HRESULT
         {
@@ -622,6 +635,7 @@ HRESULT STDMETHODCALLTYPE BrowserProxyModule::Invoke(HRESULT errorCode, ICoreWeb
             return OnWebMessageReceived(sender, args);
         }
     ).Get(), &m_webMessageReceivedToken);
+#endif
 
     m_view->add_WindowCloseRequested(Callback<ICoreWebView2WindowCloseRequestedEventHandler>(
         [this](ICoreWebView2 *sender, IUnknown *args) -> HRESULT
@@ -694,6 +708,7 @@ HRESULT BrowserProxyModule::OnNavigationStarting(ICoreWebView2 *sender,  ICoreWe
 
     settings->put_IsWebMessageEnabled(false);
 
+#ifdef THERE
     if (m_voiceTrainerProxy != nullptr)
     {
         m_voiceTrainerProxy->Close();
@@ -702,6 +717,7 @@ HRESULT BrowserProxyModule::OnNavigationStarting(ICoreWebView2 *sender,  ICoreWe
 
     if (m_settingsRequestHandler != nullptr)
         m_settingsRequestHandler.Release();
+#endif
 
     if (vcancel != VARIANT_FALSE)
     {
@@ -709,6 +725,7 @@ HRESULT BrowserProxyModule::OnNavigationStarting(ICoreWebView2 *sender,  ICoreWe
         return S_OK;
     }
 
+#ifdef THERE
     if (VoiceTrainerProxy::Validate(m_url))
     {
         CComPtr<VoiceTrainerProxy> voiceTrainerProxy(new VoiceTrainerProxy());
@@ -728,6 +745,7 @@ HRESULT BrowserProxyModule::OnNavigationStarting(ICoreWebView2 *sender,  ICoreWe
             settings->put_IsWebMessageEnabled(true);
         }
     }
+#endif
 
     return S_OK;
 }
@@ -921,6 +939,7 @@ HRESULT BrowserProxyModule::OnDocumentTitleChanged(ICoreWebView2 *sender)
     return S_OK;
 }
 
+#ifdef THERE
 HRESULT BrowserProxyModule::OnWebResourceRequested(ICoreWebView2 *sender, ICoreWebView2WebResourceRequestedEventArgs *args)
 {
     if (sender == nullptr || args == nullptr)
@@ -1032,6 +1051,7 @@ HRESULT BrowserProxyModule::OnWebMessageReceived(ICoreWebView2 *sender, ICoreWeb
 
     return S_OK;
 }
+#endif
 
 HRESULT BrowserProxyModule::OnWindowCloseRequested(ICoreWebView2 *sender)
 {
