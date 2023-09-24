@@ -2,7 +2,7 @@
 
 [![StandWithUkraine](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/badges/StandWithUkraine.svg)](https://github.com/vshymanskyy/StandWithUkraine/blob/main/docs/README.md)
 
-This ActiveX control embeds [Microsoft Edge WebView2](https://docs.microsoft.com/en-us/microsoft-edge/webview2/) into SIMATIC WinCC Runtime Advanced.
+This ActiveX control embeds [Microsoft Edge WebView2](https://docs.microsoft.com/en-us/microsoft-edge/webview2/) into SIMATIC WinCC Runtime Advanced/Professional.
 
 The [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) needs to be installed to use this control.
 
