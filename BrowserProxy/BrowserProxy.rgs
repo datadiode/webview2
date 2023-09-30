@@ -11,6 +11,7 @@ HKCR
             ForceRemove 'Programmable'
             ForceRemove 'Control'
             ForceRemove 'Insertable'
+            ForceRemove 'ToolboxBitmap32' = s '%MODULE%, 101'
             'MiscStatus' = s '0'
             {
                 '1' = s '131473'

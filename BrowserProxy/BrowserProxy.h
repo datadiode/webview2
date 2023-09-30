@@ -238,14 +238,18 @@ protected:
     HRESULT OnWebMessageReceived(ICoreWebView2 *sender, ICoreWebView2WebMessageReceivedEventArgs *args);
 #endif
     HRESULT OnWindowCloseRequested(ICoreWebView2 *sender);
+#ifdef THERE
     HRESULT OnDOMContentLoaded(ICoreWebView2 *sender, ICoreWebView2DOMContentLoadedEventArgs *args);
+#endif
     HRESULT OnDownloadStarting(ICoreWebView2 *sender, ICoreWebView2DownloadStartingEventArgs *args);
     HRESULT Navigate();
     HRESULT InvokeBrowserEvent(DISPID id, DISPPARAMS &args, VARIANT *result = nullptr);
     HRESULT SetVisibility(BOOL visible);
+#ifdef THERE
     HRESULT ForwardCookie(ICoreWebView2CookieManager *cookieManager, const WCHAR *url,
                           const WCHAR *name, const WCHAR *domain, const WCHAR *path);
     HRESULT ApplyScript(ICoreWebView2 *view, LONG id);
+#endif
     HRESULT SetDeferral(ICoreWebView2NewWindowRequestedEventArgs *args);
     HRESULT ProcessDeferral();
 

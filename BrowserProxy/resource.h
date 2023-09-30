@@ -5,10 +5,12 @@
 
 #define IDS_PROJNAME                    100
 #define IDR_BROWSERPROXY                101
+#ifdef THERE
 #define IDR_COUPLING                    102
 #define IDR_SETTINGS                    103
 
 #define TEXTFILE                        256
+#endif
 
 // Next default values for new objects
 //

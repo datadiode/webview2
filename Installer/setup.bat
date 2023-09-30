@@ -6,5 +6,6 @@ echo BrowserExecutableFolder=%~dp0%~n2 >> OpennessWebView2.ini
 :register
 set options=
 for %%x in (%*) do if /i "%%x" == "/autoextract" set options=/s
-regsvr32.exe %options% OpennessWebView2.dll
+for %%x in (system32 syswow64) do if exist "%SystemRoot%\%%x" set SystemLeaf=%%x
+"%SystemRoot%\%SystemLeaf%\regsvr32.exe" %options% OpennessWebView2.dll
 del %0

@@ -644,12 +644,14 @@ HRESULT STDMETHODCALLTYPE BrowserProxyModule::Invoke(HRESULT errorCode, ICoreWeb
         }
     ).Get(), &m_windowCloseRequestedToken);
 
+#ifdef THERE
     m_view->add_DOMContentLoaded(Callback<ICoreWebView2DOMContentLoadedEventHandler>(
         [this](ICoreWebView2 *sender, ICoreWebView2DOMContentLoadedEventArgs *args) -> HRESULT
         {
             return OnDOMContentLoaded(sender, args);
         }
     ).Get(), &m_domContentLoadedToken);
+#endif
 
     m_view->add_DownloadStarting(Callback<ICoreWebView2DownloadStartingEventHandler>(
         [this](ICoreWebView2 *sender, ICoreWebView2DownloadStartingEventArgs *args) -> HRESULT
@@ -1077,6 +1079,7 @@ HRESULT BrowserProxyModule::OnWindowCloseRequested(ICoreWebView2 *sender)
     return S_OK;
 }
 
+#ifdef THERE
 HRESULT BrowserProxyModule::OnDOMContentLoaded(ICoreWebView2 *sender, ICoreWebView2DOMContentLoadedEventArgs *args)
 {
     if (sender == nullptr || args == nullptr)
@@ -1107,6 +1110,7 @@ HRESULT BrowserProxyModule::OnDOMContentLoaded(ICoreWebView2 *sender, ICoreWebVi
 
     return S_OK;
 }
+#endif
 
 HRESULT BrowserProxyModule::OnDownloadStarting(ICoreWebView2 *sender, ICoreWebView2DownloadStartingEventArgs *args)
 {
@@ -1217,6 +1221,7 @@ HRESULT BrowserProxyModule::SetVisibility(BOOL visible)
     return S_OK;
 }
 
+#ifdef THERE
 HRESULT BrowserProxyModule::ForwardCookie(ICoreWebView2CookieManager *cookieManager, const WCHAR *url,
                                           const WCHAR *name, const WCHAR *domain, const WCHAR *path)
 {
@@ -1284,6 +1289,7 @@ HRESULT BrowserProxyModule::ApplyScript(ICoreWebView2 *view, LONG id)
 
     return S_OK;
 }
+#endif
 
 HRESULT BrowserProxyModule::SetDeferral(ICoreWebView2NewWindowRequestedEventArgs *args)
 {
