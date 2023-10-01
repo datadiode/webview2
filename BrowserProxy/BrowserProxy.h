@@ -281,6 +281,7 @@ protected:
     EventRegistrationToken                             m_windowCloseRequestedToken;
     EventRegistrationToken                             m_domContentLoadedToken;
     EventRegistrationToken                             m_downloadStartingToken;
+    EventRegistrationToken                             m_moveFocusRequestedToken;
     BOOL                                               m_ready;
     BOOL                                               m_visible;
 };

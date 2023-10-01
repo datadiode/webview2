@@ -58,8 +58,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,1,2,3
- PRODUCTVERSION 1,1,2,3
+ FILEVERSION 1,1,2,4
+ PRODUCTVERSION 1,1,2,4
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -76,12 +76,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "datadiode"
             VALUE "FileDescription", "ActiveX proxy to Edge WebView2"
-            VALUE "FileVersion", "1.1.2.3"
+            VALUE "FileVersion", "1.1.2.4"
             VALUE "InternalName", "OpennessWebView2.dll"
             VALUE "LegalCopyright", "(c) Hmph! et al."
             VALUE "OriginalFilename", "OpennessWebView2.dll"
             VALUE "ProductName", "OpennessWebView2 Control"
-            VALUE "ProductVersion", "1.1.2.3"
+            VALUE "ProductVersion", "1.1.2.4"
         END
     END
     BLOCK "VarFileInfo"

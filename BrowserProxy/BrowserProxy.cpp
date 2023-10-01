@@ -23,6 +23,7 @@
 #include "SettingsRequestHandler.h"
 #include "BrowserProxy_i.h"
 #include "BrowserProxy.h"
+#include <WebView2EnvironmentOptions.h>
 
 BEGIN_OBJECT_MAP(ObjectMap)
     OBJECT_ENTRY(CLSID_ThereEdgeWebBrowser, BrowserProxyModule)
@@ -151,6 +152,7 @@ BrowserProxyModule::BrowserProxyModule():
     m_windowCloseRequestedToken(),
     m_domContentLoadedToken(),
     m_downloadStartingToken(),
+    m_moveFocusRequestedToken(),
     m_ready(false),
     m_visible(true)
 {
@@ -177,7 +179,10 @@ BrowserProxyModule::~BrowserProxyModule()
     }
 
     if (m_controller != nullptr)
+    {
+        m_controller->remove_MoveFocusRequested(m_moveFocusRequestedToken);
         m_controller->Close();
+    }
 
 #ifdef THERE
     if (m_voiceTrainerProxy != nullptr)
@@ -268,6 +273,7 @@ LRESULT BrowserProxyModule::OnCreate(UINT, WPARAM, LPARAM, BOOL&)
 
         WCHAR userDataFolder[MAX_PATH] = { 0 };
         WCHAR browserExecutableFolder[MAX_PATH] = { 0 };
+        WCHAR additionalBrowserArguments[4096] = { 0 };
 
         if (SUCCEEDED(SHGetFolderPath(nullptr, CSIDL_LOCAL_APPDATA, nullptr, SHGFP_TYPE_CURRENT, userDataFolder)) && userDataFolder[0] != 0)
         {
@@ -283,13 +289,20 @@ LRESULT BrowserProxyModule::OnCreate(UINT, WPARAM, LPARAM, BOOL&)
         }
 
         PathRenameExtension(executingHost, L".ini");
-        if (GetPrivateProfileString(executingFileName, L"BrowserExecutableFolder", nullptr, browserExecutableFolder, _countof(browserExecutableFolder), executingHost) == 0)
-        {
-            PathRenameExtension(executingFile, L".ini");
-            GetPrivateProfileString(executingFileName, L"BrowserExecutableFolder", nullptr, browserExecutableFolder, _countof(browserExecutableFolder), executingFile);
-        }
+        GetPrivateProfileString(executingFileName, L"BrowserExecutableFolder", nullptr, browserExecutableFolder, _countof(browserExecutableFolder), executingHost);
+        GetPrivateProfileString(executingFileName, L"AdditionalBrowserArguments", nullptr, additionalBrowserArguments, _countof(additionalBrowserArguments), executingHost);
 
-        HRESULT rc = CreateCoreWebView2EnvironmentWithOptions(browserExecutableFolder, m_userDataFolder, nullptr, this);
+        PathRenameExtension(executingFile, L".ini");
+        if (*browserExecutableFolder == L'\0')
+            GetPrivateProfileString(executingFileName, L"BrowserExecutableFolder", nullptr, browserExecutableFolder, _countof(browserExecutableFolder), executingFile);
+        if (*additionalBrowserArguments == L'\0')
+            GetPrivateProfileString(executingFileName, L"AdditionalBrowserArguments", nullptr, additionalBrowserArguments, _countof(additionalBrowserArguments), executingFile);
+
+        // https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2environmentoptions
+        auto environmentOptions = Microsoft::WRL::Make<CoreWebView2EnvironmentOptions>();
+        environmentOptions->put_AdditionalBrowserArguments(additionalBrowserArguments);
+
+        HRESULT rc = CreateCoreWebView2EnvironmentWithOptions(browserExecutableFolder, m_userDataFolder, environmentOptions.Get(), this);
         if (FAILED(rc))
         {
             switch (rc)
@@ -574,6 +587,18 @@ HRESULT STDMETHODCALLTYPE BrowserProxyModule::Invoke(HRESULT errorCode, ICoreWeb
     m_controller->put_ShouldDetectMonitorScaleChanges(false);
     m_controller->put_RasterizationScale(1.0);
     m_controller->put_IsVisible(m_visible);
+    m_controller->add_MoveFocusRequested(Callback<ICoreWebView2MoveFocusRequestedEventHandler>(
+        [this](ICoreWebView2Controller *sender, ICoreWebView2MoveFocusRequestedEventArgs *args) -> HRESULT
+        {
+            COREWEBVIEW2_MOVE_FOCUS_REASON reason = COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC;
+            args->get_Reason(&reason);
+            if (reason != COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC)
+            {
+                args->put_Handled(TRUE);
+            }
+            return S_OK;
+        }
+    ).Get(), &m_moveFocusRequestedToken);
 
 #ifdef THERE
     m_view->AddWebResourceRequestedFilter(L"https://webapps.prod.there.com/*", COREWEBVIEW2_WEB_RESOURCE_CONTEXT_DOCUMENT);
