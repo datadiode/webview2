@@ -15,7 +15,9 @@ build:
 
 after_build:
 - Installer\MakeSetup.bat
+- bash.exe %APPVEYOR_BUILD_FOLDER%\virustotal_upload %APPVEYOR_BUILD_FOLDER%\Installer\OpennessWebView2.exe %APPVEYOR_BUILD_FOLDER%\Installer\virustotal_report.json
 
 artifacts:
 - path: BrowserProxy\$(configuration)\OpennessWebView2.dll
 - path: Installer\OpennessWebView2.exe
+- path: Installer\virustotal_report.json

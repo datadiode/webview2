@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+#
+# Upload a sample to VirusTotal and print the report.
+# Modified from https://gist.github.com/luca-m/c6837cb0f8656714b7ff.
+#
+# Dependencies:
+#
+#  * curl
+#  * VirusTotal API key
+#
+
+echo "Uploading $1 to VirusTotal"
+
+vt_hash=$(curl -\# -X POST 'https://www.virustotal.com/vtapi/v2/file/scan' \
+    --form apikey="$VIRUSTOTAL_API_KEY" \
+    --form file=@"$1" | grep -o '"[0-9|a-f]\{64\}"' | head -1 | sed 's/"//g')
+
+echo "SHA256:${vt_hash}  - waiting for report.."
+
+while [[ "$vt_hash" != "" ]] do
+  sleep 10
+  response=$(curl -sX POST 'https://www.virustotal.com/vtapi/v2/file/report' \
+        --form apikey="$VIRUSTOTAL_API_KEY" \
+        --form resource="$vt_hash")
+
+  if (echo -n "$response" | grep -q 'Scan finished'); then
+    echo "$response" | tee "$2"
+    break;
+  fi
+  date
+done
