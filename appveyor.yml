@@ -1,6 +1,14 @@
 version: 1.0.{build}
 image: Visual Studio 2022
 
+clone_script:
+- git clone -q --recursive --branch=%APPVEYOR_REPO_BRANCH% https://github.com/%APPVEYOR_REPO_NAME%.git %APPVEYOR_BUILD_FOLDER%
+- git checkout -qf %APPVEYOR_REPO_COMMIT%
+
+environment:
+  VIRUSTOTAL_API_KEY:
+    secure: 6VgzXytQY3l+cUPsvEuhSqu/E8JqJQPOK1Kh7mViN0SJ1M3ZHzteSpC56q3HbWXSUCAhk7ynS0BVBYDWVxi5XSXdRLCRiWaAgG7zeNoNk6Q=
+
 configuration:
 - Release
 
@@ -15,9 +23,9 @@ build:
 
 after_build:
 - Installer\MakeSetup.bat
-- bash.exe %APPVEYOR_BUILD_FOLDER%\virustotal_upload %APPVEYOR_BUILD_FOLDER%\Installer\OpennessWebView2.exe %APPVEYOR_BUILD_FOLDER%\Installer\virustotal_report.json
+- bash.exe %APPVEYOR_BUILD_FOLDER%\virustotal_upload %APPVEYOR_BUILD_FOLDER%\Installer\OpennessWebView2.exe %APPVEYOR_BUILD_FOLDER%\Installer\virustotal_report.jsn
 
 artifacts:
 - path: BrowserProxy\$(configuration)\OpennessWebView2.dll
 - path: Installer\OpennessWebView2.exe
-- path: Installer\virustotal_report.json
+- path: Installer\virustotal_report.jsn

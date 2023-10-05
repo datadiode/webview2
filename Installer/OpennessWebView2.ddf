@@ -5,9 +5,9 @@
 .Set Cabinet=on
 .Set Compress=on
 .Set CompressionType=LZX
-
 .Set CompressionMemory=18
-"..\LICENSE.md" "LICENSE.md"
-"..\BrowserProxy\Release\OpennessWebView2.dll" "OpennessWebView2.dll"
-"setup.bat" "setup.bat"
-"..\BrowserProxy\Release\WebView2Loader.dll" "WebView2Loader.dll"
+
+	"..\LICENSE.md" "LICENSE.md"
+	"..\BrowserProxy\Release\OpennessWebView2.dll" "OpennessWebView2.dll"
+	"setup.bat" "setup.bat"
+	"..\BrowserProxy\Release\WebView2Loader.dll" "WebView2Loader.dll"

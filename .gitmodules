@@ -1,3 +1,6 @@
 [submodule "Extras"]
 	path = Extras
-	url = git@github.com:hmphus/there-edge-extras.git
+	url = https://github.com/hmphus/there-edge-extras
+[submodule "UnityDoorstop-BSIPA"]
+	path = UnityDoorstop-BSIPA
+	url = https://github.com/nike4613/UnityDoorstop-BSIPA
