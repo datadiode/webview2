@@ -1,7 +1,7 @@
 @echo off
 cd "%~dp0"
 set ducible.exe="..\UnityDoorstop-BSIPA\BuildUtils\ducible.exe"
-for /f "tokens=*" %%G in ('where git.exe') do (set git.exe="%%G")
+for /f "tokens=*" %%G in ('where git.exe') do set git.exe="%%G"
 set touch.exe=%git.exe:cmd\git.exe=usr\bin\touch.exe%
 REM Read the version number from the resource file
 for /f "tokens=1,2" %%G in (..\BrowserProxy\BrowserProxy.rc) do if "%%G" == "FILEVERSION" set FILEVERSION=%%H
@@ -20,5 +20,5 @@ REM Create the SFX
 /intro="Version: %FILEVERSION:,=.%\n\nThis ActiveX control embeds Microsoft Edge WebView2\ninto SIMATIC WinCC Runtime Advanced.\n\nThe Microsoft Edge WebView2 Runtime needs to be\ninstalled to use this control." ^
 /runelevated ^
 /overwrite ^
-/exec="\"cmd.exe\" /c setup.bat $cmdline$" ^
+/exec="\"$sysdir$\mshta.exe\" \"$targetdir$\setup.hta?$dialogplacement$\" $cmdline$" ^
 /defaultpath="$programfiles$\OpennessWebView2"

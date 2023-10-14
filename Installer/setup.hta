@@ -1,0 +1,106 @@
+<HTA:APPLICATION id='app'>
+<script>
+// This very first script element exists to catch otherwise uncaught script
+// errors. It also triggers on syntax errors in subsequent script elements.
+window.onerror = function(message, url, line)
+{
+	alert(url + "(" + line + "):\n" + message);
+}
+</script>
+<script>
+if (typeof dialogArguments === "undefined")
+{
+	moveTo(15000, 15000);
+	showModalDialog(location, app, location.search.substr(1));
+	close();
+}
+</script>
+<style>
+html
+{
+	font: 13px verdana;
+}
+table
+{
+	font: 13px verdana;
+	border: 1px solid black;
+	border-collapse: collapse;
+	margin: 8px;
+}
+td
+{
+	border: 1px solid black;
+	padding: 5px;
+	height: 30px;
+}
+body
+{
+	overflow: hidden;
+	height: 100%;
+}
+center
+{
+	text-align: right;
+	display:block;
+	left: 0px;
+	bottom: 0px;
+	border-top: 2 outset buttonface;
+	width: 100%;
+	white-space: nowrap;
+	position: absolute;
+	background-color: buttonface;
+}
+button
+{
+	font: 11px verdana;
+	margin: 13px 11px 11px 11px;
+	height: 23px;
+	width: 75px;
+}
+</style>
+<script>
+window.onload = function()
+{
+	var autoextract = false;
+	var marquee = "<marquee>&#x1F40C;&#x1F40C;&#x1F40C;&#x1F40C;&#x1F40C;</marquee>";
+	var wsh = new ActiveXObject("WScript.Shell");
+	var matches = dialogArguments.commandLine.match(/(?:"[^"]*"|\S+)/g);
+	for (var i = 0; i < matches.length; i++)
+	{
+		var arg = matches[i].replace(/"/g, "");
+		if (arg == "/autoextract") autoextract = true;
+		if (/\.cab$/i.test(arg))
+		{
+			WebView2FixedRuntimeDeployment.innerHTML = marquee;
+			var result = wsh.Run("expand.exe -f:* ? .".replace("?", arg), 6, true);
+			WebView2FixedRuntimeDeployment.innerHTML = result == 0 ? "SUCCEEDED" : "FAILED";
+			var fso = new ActiveXObject("Scripting.FileSystemObject");
+			var file = fso.CreateTextFile("OpennessWebView2.ini", true);
+			file.WriteLine("[OpennessWebView2.dll]");
+			file.WriteLine("BrowserExecutableFolder=" + fso.GetAbsolutePathName(fso.GetBaseName(arg)));
+			file.Close();
+		}
+		else
+		{
+			WebView2FixedRuntimeDeployment.innerHTML = "N/A";
+		}
+	}
+	OpennessWebView2DllRegistration.innerHTML = marquee;
+	var result = wsh.Run("\"%windir%\\system32\\regsvr32.exe\" /s OpennessWebView2.dll", 6, true);
+	OpennessWebView2DllRegistration.innerHTML = result == 0 ? "SUCCEEDED" : "FAILED";
+	if (autoextract) window.close();
+}
+</script>
+<title>OpennessWebView2 Control</title>
+<body>
+<table border='1'>
+<col>
+<col width='100' align='center'>
+<tr><td>WebView2 fixed runtime deployment<td id='WebView2FixedRuntimeDeployment'>
+<tr><td>OpennessWebView2.dll registration<td id='OpennessWebView2DllRegistration'>
+</table>
+<center>
+<button tabindex='2' accesskey='d' onclick='showModalDialog("demo.hta", app, "dialogWidth:800px;dialogHeight:600px;resizable:yes")'>Demo</button>
+<button tabindex='1' accesskey='c' onclick='window.close()'>Close</button>
+</center>
+</body>

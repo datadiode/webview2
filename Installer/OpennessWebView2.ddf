@@ -9,5 +9,6 @@
 
 	"..\LICENSE.md" "LICENSE.md"
 	"..\BrowserProxy\Release\OpennessWebView2.dll" "OpennessWebView2.dll"
-	"setup.bat" "setup.bat"
+	"setup.hta" "setup.hta"
+	"demo.hta" "demo.hta"
 	"..\BrowserProxy\Release\WebView2Loader.dll" "WebView2Loader.dll"
