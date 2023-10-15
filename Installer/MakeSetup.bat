@@ -9,11 +9,14 @@ echo FILEVERSION=%FILEVERSION:,=.%
 %ducible.exe% ..\BrowserProxy\Release\OpennessWebView2.dll
 for /f delims^=^"^ tokens^=2 %%G in (OpennessWebView2.ddf) do %touch.exe% -t 20230%FILEVERSION:,=% %~dp0%%G
 set FILEVERSION=%FILEVERSION:,0=,%
+REM Create the ZIP
+del "OpennessWebView2.zip"
+"%ProgramFiles%\7-zip\7z.exe" a -mx9 "OpennessWebView2.zip" "..\BrowserProxy\Release\*.dll" "..\LICENSE.md" "setup.hta" "demo.hta"
 REM Create the CAB
-makecab /f OpennessWebView2.ddf
+REM makecab /f OpennessWebView2.ddf
 REM Create the SFX
 "makesfx.exe" ^
-/zip="disk1\OpennessWebView2.cab" ^
+/zip="OpennessWebView2.zip" ^
 /sfx="OpennessWebView2.exe" ^
 /title="OpennessWebView2 Control" ^
 /website="https://github.com/datadiode/webview2" ^
